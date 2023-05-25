@@ -10,7 +10,7 @@ namespace luguohuakai\db\dm;
 use yii\db\ColumnSchemaBuilder as AbstractColumnSchemaBuilder;
 
 /**
- * ColumnSchemaBuilder is the schema builder for Oracle databases.
+ * ColumnSchemaBuilder is the schema builder for DM databases.
  *
  * @author DM <769245396@qq.com>
  * @since 2.0.6
@@ -39,7 +39,7 @@ class ColumnSchemaBuilder extends AbstractColumnSchemaBuilder
     /**
      * {@inheritdoc}
      */
-    protected function buildUnsignedString()
+    protected function buildUnsignedString(): string
     {
         return $this->isUnsigned ? ' UNSIGNED' : '';
     }

@@ -9,12 +9,14 @@ namespace luguohuakai\db\dm;
 
 use Generator;
 use yii\base\InvalidArgumentException;
+use yii\base\NotSupportedException;
 use yii\db\Connection;
 use yii\db\Constraint;
 use yii\db\Exception;
 use yii\db\Expression;
 use yii\db\ExpressionInterface;
 use yii\db\Query;
+use yii\db\Schema;
 use yii\helpers\StringHelper;
 
 /**
@@ -86,13 +88,13 @@ EOD;
     /**
      * Builds a SQL statement for renaming a DB table.
      *
-     * @param string $table the table to be renamed. The name will be properly quoted by the method.
+     * @param string $oldName the table to be renamed. The name will be properly quoted by the method.
      * @param string $newName the new table name. The name will be properly quoted by the method.
      * @return string the SQL statement for renaming a DB table.
      */
-    public function renameTable($table, $newName)
+    public function renameTable($oldName, $newName): string
     {
-        return 'ALTER TABLE ' . $this->db->quoteTableName($table) . ' RENAME TO ' . $this->db->quoteTableName($newName);
+        return 'ALTER TABLE ' . $this->db->quoteTableName($oldName) . ' RENAME TO ' . $this->db->quoteTableName($newName);
     }
 
     /**
@@ -105,7 +107,7 @@ EOD;
      * For example, 'string' will be turned into 'varchar(255)', while 'string not null' will become 'varchar(255) not null'.
      * @return string the SQL statement for changing the definition of a column.
      */
-    public function alterColumn($table, $column, $type)
+    public function alterColumn($table, $column, $type): string
     {
         $type = $this->getColumnType($type);
 
@@ -119,7 +121,7 @@ EOD;
      * @param string $table the table whose index is to be dropped. The name will be properly quoted by the method.
      * @return string the SQL statement for dropping an index.
      */
-    public function dropIndex($name, $table)
+    public function dropIndex($name, $table): string
     {
         return 'DROP INDEX ' . $this->db->quoteTableName($name);
     }
@@ -151,7 +153,7 @@ EOD;
                 }) + 1;
         }
 
-        //Oracle needs at least two queries to reset sequence (see adding transactions and/or use alter method to avoid grants' issue?)
+        //DM needs at least two queries to reset sequence (see adding transactions and/or use alter method to avoid grants' issue?)
         $this->db->createCommand('DROP SEQUENCE "' . $tableSchema->sequenceName . '"')->execute();
         $this->db->createCommand('CREATE SEQUENCE "' . $tableSchema->sequenceName . '" START WITH ' . $value
             . ' INCREMENT BY 1 NOMAXVALUE NOCACHE')->execute();
@@ -159,8 +161,9 @@ EOD;
 
     /**
      * {@inheritdoc}
+     * @throws Exception
      */
-    public function addForeignKey($name, $table, $columns, $refTable, $refColumns, $delete = null, $update = null)
+    public function addForeignKey($name, $table, $columns, $refTable, $refColumns, $delete = null, $update = null): string
     {
         $sql = 'ALTER TABLE ' . $this->db->quoteTableName($table)
             . ' ADD CONSTRAINT ' . $this->db->quoteColumnName($name)
@@ -171,7 +174,7 @@ EOD;
             $sql .= ' ON DELETE ' . $delete;
         }
         if ($update !== null) {
-            throw new Exception('Oracle does not support ON UPDATE clause.');
+            throw new Exception('DM does not support ON UPDATE clause.');
         }
 
         return $sql;
@@ -181,7 +184,7 @@ EOD;
      * {@inheritdoc}
      * @see https://docs.oracle.com/cd/B28359_01/server.111/b28286/statements_9016.htm#SQLRF01606
      */
-    public function upsert($table, $insertColumns, $updateColumns, &$params)
+    public function upsert($table, $insertColumns, $updateColumns, &$params): string
     {
         /** @var Constraint[] $constraints */
         list($uniqueNames, $insertNames, $updateNames) = $this->prepareUpsertColumns($table, $insertColumns, $updateColumns, $constraints);
@@ -216,7 +219,7 @@ EOD;
             list($usingValues, $params) = $this->build($usingSubQuery, $params);
         }
         $mergeSql = 'MERGE INTO ' . $this->db->quoteTableName($table) . ' '
-            . 'USING (' . (isset($usingValues) ? $usingValues : ltrim($values, ' ')) . ') "EXCLUDED" '
+            . 'USING (' . ($usingValues ?? ltrim($values, ' ')) . ') "EXCLUDED" '
             . "ON ($on)";
         $insertValues = [];
         foreach ($insertNames as $name) {
@@ -250,7 +253,7 @@ EOD;
     /**
      * {@inheritdoc}
      */
-    protected function prepareInsertValues($table, $columns, $params = [])
+    protected function prepareInsertValues($table, $columns, $params = []): array
     {
         list($names, $placeholders, $values, $params) = parent::prepareInsertValues($table, $columns, $params);
         if (!$columns instanceof Query && empty($names)) {
@@ -283,10 +286,12 @@ EOD;
      *
      * @param string $table the table that new rows will be inserted into.
      * @param array $columns the column names
-     * @param array|Generator $rows the rows to be batch inserted into the table
+     * @param array|Generator $rows the rows to be batching inserted into the table
+     * @param array $params
      * @return string the batch INSERT SQL statement
+     * @throws NotSupportedException
      */
-    public function batchInsert($table, $columns, $rows, &$params = [])
+    public function batchInsert($table, $columns, $rows, &$params = []): string
     {
         if (empty($rows)) {
             return '';
@@ -333,14 +338,14 @@ EOD;
         $tableAndColumns = ' INTO ' . $schema->quoteTableName($table)
             . ' (' . implode(', ', $columns) . ') VALUES ';
 
-        return 'INSERT ALL ' . $tableAndColumns . implode($tableAndColumns, $values) . ' SELECT 1 FROM SYS.DUAL';
+        return 'INSERT' . $tableAndColumns . implode(', ', $values);
     }
 
     /**
      * {@inheritdoc}
      * @since 2.0.8
      */
-    public function selectExists($rawSql)
+    public function selectExists($rawSql): string
     {
         return 'SELECT CASE WHEN EXISTS(' . $rawSql . ') THEN 1 ELSE 0 END FROM DUAL';
     }
@@ -349,7 +354,7 @@ EOD;
      * {@inheritdoc}
      * @since 2.0.8
      */
-    public function dropCommentFromColumn($table, $column)
+    public function dropCommentFromColumn($table, $column): string
     {
         return 'COMMENT ON COLUMN ' . $this->db->quoteTableName($table) . '.' . $this->db->quoteColumnName($column) . " IS ''";
     }
@@ -358,7 +363,7 @@ EOD;
      * {@inheritdoc}
      * @since 2.0.8
      */
-    public function dropCommentFromTable($table)
+    public function dropCommentFromTable($table): string
     {
         return 'COMMENT ON TABLE ' . $this->db->quoteTableName($table) . " IS ''";
     }
@@ -366,7 +371,7 @@ EOD;
     /**
      * {@inheritdoc}
      */
-    protected function defaultExpressionBuilders()
+    protected function defaultExpressionBuilders(): array
     {
         return array_merge(parent::defaultExpressionBuilders(), [
             'yii\db\conditions\InCondition' => 'luguohuakai\db\dm\conditions\InConditionBuilder',
