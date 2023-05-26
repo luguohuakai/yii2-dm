@@ -39,7 +39,7 @@ class ColumnSchemaBuilder extends AbstractColumnSchemaBuilder
     /**
      * {@inheritdoc}
      */
-    protected function buildUnsignedString(): string
+    protected function buildUnsignedString()
     {
         return $this->isUnsigned ? ' UNSIGNED' : '';
     }
