@@ -77,7 +77,7 @@ class Schema extends \yii\db\Schema implements ConstraintFinderInterface
      */
     public function createQueryBuilder()
     {
-        return new QueryBuilder($this->db);
+        return new \luguohuakai\db\dm\QueryBuilder($this->db);
     }
 
     /**
