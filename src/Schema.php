@@ -90,8 +90,6 @@ class Schema extends \yii\db\Schema implements ConstraintFinderInterface
 
     /**
      * @Overrides method in class 'Schema'
-     * @see https://www.php.net/manual/en/function.PDO-lastInsertId.php -> DM does not support this
-     *
      * Returns the ID of the last inserted row or sequence value.
      * @param string $sequenceName name of the sequence object (required by some DBMS)
      * @return string the row ID of the last row inserted, or the last value retrieved from the sequence object
@@ -101,9 +99,16 @@ class Schema extends \yii\db\Schema implements ConstraintFinderInterface
     {
         if ($this->db->isActive) {
             // get the last insert id from the master connection
-            $sequenceName = $this->quoteSimpleTableName($sequenceName);
-            return $this->db->useMaster(function (Connection $db) use ($sequenceName) {
-                return $db->createCommand("SELECT $sequenceName.CURRVAL FROM DUAL")->queryScalar();
+            return $this->db->useMaster(function (Connection $db) {
+                // https://eco.dameng.com/document/dm/zh-cn/pm/sql-appendix
+                // 定义:
+                // INT
+                // SCOPE_IDENTITY();
+                // 功能说明:
+                // 返回插入到同一作用域中的 identity 列内的最后一个 identity 值.
+                // 返回值:
+                // RVAL: 函数返回值, 长度为 8
+                return $db->createCommand("SELECT SCOPE_IDENTITY()")->queryScalar();
             });
         } else {
             throw new InvalidCallException('DB Connection is not active.');
@@ -155,56 +160,6 @@ SQL;
         ]);
         foreach ($command->queryAll() as $row) {
             $result[$row['INDEX_NAME']][] = $row['COLUMN_NAME'];
-        }
-
-        return $result;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function insert($table, $columns)
-    {
-        $params = [];
-        $returnParams = [];
-        $sql = $this->db->getQueryBuilder()->insert($table, $columns, $params);
-        $tableSchema = $this->getTableSchema($table);
-        $returnColumns = $tableSchema->primaryKey;
-        if (!empty($returnColumns)) {
-            $columnSchemas = $tableSchema->columns;
-            $returning = [];
-            foreach ($returnColumns as $name) {
-                $phName = QueryBuilder::PARAM_PREFIX . (count($params) + count($returnParams));
-                $returnParams[$phName] = [
-                    'column' => $name,
-                    'value' => '',
-                ];
-                if (!isset($columnSchemas[$name]) || $columnSchemas[$name]->phpType !== 'integer') {
-                    $returnParams[$phName]['dataType'] = PDO::PARAM_STR;
-                } else {
-                    $returnParams[$phName]['dataType'] = PDO::PARAM_INT;
-                }
-                $returnParams[$phName]['size'] = isset($columnSchemas[$name]->size) ? $columnSchemas[$name]->size : -1;
-                $returning[] = $this->quoteColumnName($name);
-            }
-            $sql .= ' RETURNING ' . implode(', ', $returning) . ' INTO ' . implode(', ', array_keys($returnParams));
-        }
-
-        $command = $this->db->createCommand($sql, $params);
-        $command->prepare(false);
-
-        foreach ($returnParams as $name => &$value) {
-            $command->pdoStatement->bindParam($name, $value['value'], $value['dataType'], $value['size']);
-        }
-
-        if (!$command->execute()) {
-            return false;
-        }
-
-        $result = [];
-        unset($value);
-        foreach ($returnParams as $value) {
-            $result[$value['column']] = $value['value'];
         }
 
         return $result;
