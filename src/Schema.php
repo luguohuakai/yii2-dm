@@ -265,7 +265,7 @@ SELECT
     A.DATA_DEFAULT,
     COM.COMMENTS AS COLUMN_COMMENT,
     (case when C.INFO2 = 1 then '1' else '0' end) as IS_INCREMENT,
-    (case when ISNULL(D.INDEX_NAME) = '1' then '0' else '1' end) as IS_PRIMARY_KEY
+    (case when ISNULL(D.COLUMN_NAME) = '1' then '0' else '1' end) as IS_PRIMARY_KEY
 FROM ALL_TAB_COLUMNS A
     INNER JOIN ALL_OBJECTS B ON B.OWNER = A.OWNER AND LTRIM(B.OBJECT_NAME) = LTRIM(A.TABLE_NAME)
     LEFT JOIN ALL_COL_COMMENTS COM ON (A.OWNER = COM.OWNER AND A.TABLE_NAME = COM.TABLE_NAME AND A.COLUMN_NAME = COM.COLUMN_NAME)
@@ -276,8 +276,8 @@ FROM ALL_TAB_COLUMNS A
 		WHERE a.INFO2=1 and c.name= :tableName
 	) C ON C.COL_NAME=A.COLUMN_NAME
 	LEFT JOIN (
-		SELECT  INDEX_NAME,COLUMN_NAME FROM USER_IND_COLUMNS 
-		WHERE TABLE_NAME = :tableName
+	    SELECT  col.column_name FROM ALL_CONSTRAINTS con,ALL_CONS_COLUMNS col 
+        WHERE con.constraint_name=col.constraint_name AND con.constraint_type='P' AND col.table_name= :tableName
 	) D ON D.COLUMN_NAME=A.COLUMN_NAME
 WHERE
     A.OWNER = :schemaName
