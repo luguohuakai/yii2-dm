@@ -263,10 +263,22 @@ SELECT
     ) AS DATA_LENGTH,
     A.NULLABLE,
     A.DATA_DEFAULT,
-    COM.COMMENTS AS COLUMN_COMMENT
+    COM.COMMENTS AS COLUMN_COMMENT,
+    (case when C.INFO2 = 1 then '1' else '0' end) as IS_INCREMENT,
+    (case when ISNULL(D.INDEX_NAME) = '1' then '0' else '1' end) as IS_PRIMARY_KEY
 FROM ALL_TAB_COLUMNS A
     INNER JOIN ALL_OBJECTS B ON B.OWNER = A.OWNER AND LTRIM(B.OBJECT_NAME) = LTRIM(A.TABLE_NAME)
     LEFT JOIN ALL_COL_COMMENTS COM ON (A.OWNER = COM.OWNER AND A.TABLE_NAME = COM.TABLE_NAME AND A.COLUMN_NAME = COM.COLUMN_NAME)
+	LEFT JOIN (
+		select a.name COL_NAME,a.INFO2 
+		from syscolumns a
+		left join sysobjects c on a.id=c.id
+		where a.INFO2=1 and c.name= :tableName
+	) C ON C.COL_NAME=A.COLUMN_NAME
+	LEFT JOIN (
+		select  INDEX_NAME,COLUMN_NAME from user_ind_columns 
+		where table_name = :tableName
+	) D ON D.COLUMN_NAME=A.COLUMN_NAME
 WHERE
     A.OWNER = :schemaName
     AND B.OBJECT_TYPE IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
@@ -311,7 +323,8 @@ SQL;
         $c->name = $column['COLUMN_NAME'];
         $c->allowNull = $column['NULLABLE'] === 'Y';
         $c->comment = $column['COLUMN_COMMENT'] === null ? '' : $column['COLUMN_COMMENT'];
-        $c->isPrimaryKey = false;
+        $c->isPrimaryKey = $column['IS_PRIMARY_KEY'] === '1';
+        $c->autoIncrement = $column['IS_INCREMENT'] === '1';
         $this->extractColumnType($c, $column['DATA_TYPE'], $column['DATA_PRECISION'], $column['DATA_SCALE'], $column['DATA_LENGTH']);
         $this->extractColumnSize($c, $column['DATA_TYPE'], $column['DATA_PRECISION'], $column['DATA_SCALE'], $column['DATA_LENGTH']);
 
