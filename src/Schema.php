@@ -270,14 +270,14 @@ FROM ALL_TAB_COLUMNS A
     INNER JOIN ALL_OBJECTS B ON B.OWNER = A.OWNER AND LTRIM(B.OBJECT_NAME) = LTRIM(A.TABLE_NAME)
     LEFT JOIN ALL_COL_COMMENTS COM ON (A.OWNER = COM.OWNER AND A.TABLE_NAME = COM.TABLE_NAME AND A.COLUMN_NAME = COM.COLUMN_NAME)
 	LEFT JOIN (
-		select a.name COL_NAME,a.INFO2 
-		from syscolumns a
-		left join sysobjects c on a.id=c.id
-		where a.INFO2=1 and c.name= :tableName
+		SELECT a.name COL_NAME,a.INFO2 
+		FROM SYSCOLUMNS a
+		LEFT JOIN SYSOBJECTS c on a.id=c.id
+		WHERE a.INFO2=1 and c.name= :tableName
 	) C ON C.COL_NAME=A.COLUMN_NAME
 	LEFT JOIN (
-		select  INDEX_NAME,COLUMN_NAME from user_ind_columns 
-		where table_name = :tableName
+		SELECT  INDEX_NAME,COLUMN_NAME FROM USER_IND_COLUMNS 
+		WHERE TABLE_NAME = :tableName
 	) D ON D.COLUMN_NAME=A.COLUMN_NAME
 WHERE
     A.OWNER = :schemaName
