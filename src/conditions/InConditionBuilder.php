@@ -13,7 +13,6 @@ use yii\db\ExpressionInterface;
 
 /**
  * @author DM <769245396@qq.com>
- * {@inheritdoc}
  */
 class InConditionBuilder extends \yii\db\conditions\InConditionBuilder
 {

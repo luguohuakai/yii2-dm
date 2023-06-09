@@ -31,7 +31,7 @@ Once the extension is installed, simply use it in your code by  :
 'components' => [
     'db' => [
         'class' => 'luguohuakai\db\dm\Connection',
-        'dsn' => 'dm:host=localhost:xxx;dbname=xxx',
+        'dsn' => 'dm:host=localhost:xxx;schema=xxx',
         'username' => 'SYSDBA',
         'password' => 'SYSDBA',
     ]
