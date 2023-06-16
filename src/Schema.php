@@ -97,7 +97,7 @@ class Schema extends \yii\db\Schema implements ConstraintFinderInterface
      */
     public function createQueryBuilder()
     {
-        return new \luguohuakai\db\dm\QueryBuilder($this->db);
+        return new QueryBuilder($this->db);
     }
 
     /**
@@ -393,23 +393,29 @@ SQL;
         $column->dbType = $dbType;
 
         if (strpos($dbType, 'FLOAT') !== false || strpos($dbType, 'DOUBLE') !== false) {
-            $column->type = 'double';
+            $column->type = self::TYPE_DOUBLE;
         } elseif (strpos($dbType, 'NUMBER') !== false) {
             if ($scale > 0) {
-                $column->type = 'decimal';
+                $column->type = self::TYPE_DECIMAL;
             } else {
-                $column->type = 'integer';
+                $column->type = self::TYPE_INTEGER;
             }
+        } elseif ($dbType == 'INT') {
+            $column->type = self::TYPE_INTEGER;
+        } elseif ($dbType == 'TINYINT') {
+            $column->type = self::TYPE_TINYINT;
+        } elseif ($dbType == 'BIGINT') {
+            $column->type = self::TYPE_BIGINT;
         } elseif (strpos($dbType, 'INTEGER') !== false) {
-            $column->type = 'integer';
+            $column->type = self::TYPE_INTEGER;
         } elseif (strpos($dbType, 'BLOB') !== false) {
-            $column->type = 'binary';
+            $column->type = self::TYPE_BINARY;
         } elseif (strpos($dbType, 'CLOB') !== false) {
-            $column->type = 'text';
+            $column->type = self::TYPE_TEXT;
         } elseif (strpos($dbType, 'TIMESTAMP') !== false) {
-            $column->type = 'timestamp';
+            $column->type = self::TYPE_TIMESTAMP;
         } else {
-            $column->type = 'string';
+            $column->type = self::TYPE_STRING;
         }
     }
 
