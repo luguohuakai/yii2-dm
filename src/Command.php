@@ -11,7 +11,7 @@ use PDO;
 
 /**
  * @author DM <769245396@qq.com>
- * @since 2.0
+ * @since 2.0.33
  */
 class Command extends \yii\db\Command
 {
