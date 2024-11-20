@@ -10,6 +10,7 @@ namespace luguohuakai\db\dm;
 use Exception;
 use PDO;
 use Throwable;
+use Yii;
 use yii\base\InvalidCallException;
 use yii\base\InvalidConfigException;
 use yii\base\NotSupportedException;
@@ -328,29 +329,33 @@ FROM ALL_TAB_COLUMNS A
 		SELECT a.name COL_NAME,a.INFO2 
 		FROM SYSCOLUMNS a
 		LEFT JOIN SYSOBJECTS c on a.id=c.id
-		WHERE a.INFO2=1 and c.name= :tableName
+		WHERE a.INFO2=1 and c.name= :tableName1
 	) C ON C.COL_NAME=A.COLUMN_NAME
 	LEFT JOIN (
 	    SELECT  col.column_name FROM ALL_CONSTRAINTS con,ALL_CONS_COLUMNS col 
-        WHERE con.constraint_name=col.constraint_name AND con.constraint_type='P' AND col.table_name= :tableName
+        WHERE con.constraint_name=col.constraint_name AND con.constraint_type='P' AND col.table_name= :tableName2
 	) D ON D.COLUMN_NAME=A.COLUMN_NAME
 WHERE
     A.OWNER = :schemaName
     AND B.OBJECT_TYPE IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW')
-    AND B.OBJECT_NAME = :tableName
+    AND B.OBJECT_NAME = :tableName3
 ORDER BY A.COLUMN_ID
 SQL;
 
         try {
             $columns = $this->db->createCommand($sql, [
-                ':tableName' => $table->name,
+                ':tableName1' => $table->name, // php8.2 参数个数不一致达梦pdo会报错 20241120
+                ':tableName2' => $table->name, // php8.2 参数个数不一致达梦pdo会报错 20241120
+                ':tableName3' => $table->name, // php8.2 参数个数不一致达梦pdo会报错 20241120
                 ':schemaName' => $table->schemaName,
             ])->queryAll();
         } catch (Exception $e) {
+            Yii::error('sql execute error: ' . $e->getMessage(), 'dm');
             return false;
         }
 
         if (empty($columns)) {
+            Yii::error('columns not found, sql: ' . $sql, 'dm');
             return false;
         }
 
@@ -386,7 +391,7 @@ SQL;
         $c->phpType = $this->getColumnPhpType($c);
 
         if (!$c->isPrimaryKey) {
-            if (stripos($column['DATA_DEFAULT'], 'timestamp') !== false) {
+            if ($column['DATA_DEFAULT'] !== null && stripos($column['DATA_DEFAULT'], 'timestamp') !== false) {
                 $c->defaultValue = null;
             } else {
                 $defaultValue = $column['DATA_DEFAULT'];
@@ -467,9 +472,9 @@ SQL;
      */
     protected function extractColumnSize(ColumnSchema $column, $dbType, $precision, $scale, $length)
     {
-        $column->size = trim($length) === '' ? null : (int)$length;
-        $column->precision = trim($precision) === '' ? null : (int)$precision;
-        $column->scale = trim($scale) === '' ? null : (int)$scale;
+        $column->size = $length === null ? null : (trim($length) === '' ? null : (int)$length);
+        $column->precision = $precision === null ? null : (trim($precision) === '' ? null : (int)$precision);
+        $column->scale = $scale === null ? null : (trim($scale) === '' ? null : (int)$scale);
     }
 
     /**
